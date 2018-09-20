@@ -16,10 +16,9 @@ import java.util.Date;
 public class RequestProcessor implements Runnable{
 	
 	private File rootDirectory;
-	private String indexFileName;
 	private Socket connection;
 	
-	public RequestProcessor(File rootDirectory,String indexFileName,Socket connection) {
+	public RequestProcessor(File rootDirectory,Socket connection) {		  //æ„é€ å‡½æ•°
 		if(rootDirectory.isFile())
 		{
 			throw new IllegalArgumentException("root Directory must be a directory, not a file");
@@ -31,59 +30,53 @@ public class RequestProcessor implements Runnable{
 			// TODO: handle exception
 		}
 		this.rootDirectory = rootDirectory;
-		if(indexFileName!=null)
-		{
-			this.indexFileName = indexFileName;
-		}
 		this.connection = connection;
 	}
 	
 	@Override
 	public void run() {
-	String root = rootDirectory.getPath(); 	 //µÃµ½Â·¾¶
+	String root = rootDirectory.getPath(); 	 //å¾—åˆ°è·¯å¾„
 	try
 	{
 		OutputStream raw = new BufferedOutputStream(connection.getOutputStream());
 		Writer writer = new OutputStreamWriter(raw,"utf-8");
 		BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), "utf-8")) ;
 		StringBuilder requestLine = new StringBuilder();
+		
 		while(true)
 		{
 
 			String line = reader.readLine();
-			if(line.equals(""))      //±¨ÎÄÍ·µÄ¡°\r\n¡±
+			if(line.equals(""))      //æŠ¥æ–‡å¤´çš„â€œ\r\nâ€
 			{
-				break;				//¼ì²âµ½ºóÖ¤Ã÷±¨ÎÄÍ·ÒÑ¾­½ÓÊÕÍê±Ï
+				break;				//æ£€æµ‹åˆ°åè¯æ˜æŠ¥æ–‡å¤´å·²ç»æ¥æ”¶å®Œæ¯•
 			}
 			requestLine.append(line+'\n');
 		}
-		String header = requestLine.toString(); 			//±¨ÎÄÍ·²¿
+		
+		String header = requestLine.toString(); 			//æŠ¥æ–‡å¤´éƒ¨
 		String[] line = header.split("\n");
 		String get = line[0];
-		LogInfo.appendLog(connection.getRemoteSocketAddress() + " " + get);		
-		String[] tokens = get.split("\\s+");  				// /s±íÊ¾Æ¥ÅäÈÎºÎ¿Õ°××Ö·û
-		String method = tokens[0];							//µÃµ½·½·¨
+//		LogInfo.appendLog(connection.getRemoteSocketAddress() + " " + get);		
+		String[] tokens = get.split("\\s+");  				// /sè¡¨ç¤ºåŒ¹é…ä»»ä½•ç©ºç™½å­—ç¬¦
+		String method = tokens[0];							//å¾—åˆ°æ–¹æ³•
 		String version = "";
 		
 		if(method.equals("GET"))							//GET
 		{
 			String fileName = tokens[1];
-			if(fileName.endsWith("/"))
-			{
-				fileName+=indexFileName;  			//µÃµ½ÎÄ¼şÃû
-			}
-			fileName+=".html";
-			String contentType = URLConnection.getFileNameMap().getContentTypeFor(fileName);  	//²Â²âÎÄ¼şÀàĞÍ
+			System.out.println(fileName);
+			String contentType = URLConnection.getFileNameMap().getContentTypeFor(fileName);  	//çŒœæµ‹æ–‡ä»¶ç±»å‹
+			System.out.println(contentType);
 			if(tokens.length>2)
 			{
 				version = tokens[2];
 			}
 			
-			File theFile = new File(rootDirectory,fileName.substring(1, fileName.length()));	//filenameÒ»¿ªÊ¼Ç°ÃæÓĞ/ ĞèÒªÈ¥µô
-			
+			File theFile = new File(rootDirectory,fileName.substring(1, fileName.length()));	//filenameä¸€å¼€å§‹å‰é¢æœ‰/ éœ€è¦å»æ‰   æ‰¾åˆ°æ–‡ä»¶
 			if(theFile.canRead() && theFile.getCanonicalPath().startsWith(root))
 			{
-				byte[] theData = Files.readAllBytes(theFile.toPath());
+				byte[] theData = Files.readAllBytes(theFile.toPath());							//äºŒè¿›åˆ¶è¯»å–æ–‡ä»¶
 				if(version.startsWith("HTTP/"))
 				{
 					sendHeader(writer, "HTTP/1.0 200 OK",contentType , theData.length);
@@ -91,7 +84,7 @@ public class RequestProcessor implements Runnable{
 				raw.write(theData);
 				raw.flush();
 			}
-			else     										 //ÎÄ¼ş²»ÄÜ¶ÁÈ¡¾ÍÏÔÊ¾404 NOT FOUNT
+			else     										 									//æ–‡ä»¶ä¸èƒ½è¯»å–å°±æ˜¾ç¤º404 NOT FOUNT
 			{
 				String body = new StringBuilder("<HTML>\r\n")
 						.append("<HEAD><TITLE>File Not Found</TITLE>\r\n")
@@ -108,56 +101,56 @@ public class RequestProcessor implements Runnable{
 			}
 			
 		}
-		else if (method.equals("HEAD")) 						//HEAD
-		{
-			String fileName = tokens[1];
-			if(fileName.endsWith("/"))
-			{
-				fileName+=indexFileName;
-			}
-			fileName+=".html";
-			String contentType = URLConnection.getFileNameMap().getContentTypeFor(fileName);
-			if(tokens.length>2)
-			{
-				version = tokens[2];
-			}
-			
-			File theFile = new File(rootDirectory,fileName.substring(1, fileName.length()));
-			
-			if(theFile.canRead() && theFile.getCanonicalPath().startsWith(root))
-			{
-				int theDataLength = Files.readAllBytes(theFile.toPath()).length;
-				if(version.startsWith("HTTP/"))
-				{
-					sendHeader(writer, "HTTP/1.0 200 OK",contentType , theDataLength);
-				}
-
-			}
-		}
-		else if (method.equals("POST")) 						//POST
-		{
-			requestLine.append(reader.readLine()+'\r');			//½«±íµ¥Êı¾İ¶ÁÈ¡³öÀ´
-			String lists = requestLine.toString().substring(requestLine.toString().indexOf("account"), requestLine.toString().length());
-			String [] list = lists.split("&");
-			LogInfo.appendLog(list[0]);
-			LogInfo.appendLog(list[1]);
-			LogInfo.appendLog(list[2]);
-		}
-		else 													//Ã»ÓĞÊµÏÖµÄ·½·¨ ·µ»Ø501 Not Implemented
-		{
-			String body = new StringBuilder("<HTML>\r\n")
-					.append("<HEAD><TITLE>Not Implemented</TITLE>\r\n")
-					.append("<HEAD>\r\n")
-					.append("<BODY>")
-					.append("<H1>HTTP Error 501: Not Implemented</H1>\r\n")
-					.append("</BODY></HTML>\r\n").toString();
-			if(version.startsWith("HTTP/"))
-			{
-				sendHeader(writer, "HTTP/1.0 501 Not Implemented", "text/html; charset=utf-8", body.length());
-			}
-			writer.write(body);
-			writer.flush();
-		}
+//		else if (method.equals("HEAD")) 						//HEAD
+//		{
+//			String fileName = tokens[1];
+//			if(fileName.endsWith("/"))
+//			{
+//				fileName+=indexFileName;
+//			}
+//			fileName+=".html";
+//			String contentType = URLConnection.getFileNameMap().getContentTypeFor(fileName);
+//			if(tokens.length>2)
+//			{
+//				version = tokens[2];
+//			}
+//			
+//			File theFile = new File(rootDirectory,fileName.substring(1, fileName.length()));
+//			
+//			if(theFile.canRead() && theFile.getCanonicalPath().startsWith(root))
+//			{
+//				int theDataLength = Files.readAllBytes(theFile.toPath()).length;
+//				if(version.startsWith("HTTP/"))
+//				{
+//					sendHeader(writer, "HTTP/1.0 200 OK",contentType , theDataLength);
+//				}
+//
+//			}
+//		}
+//		else if (method.equals("POST")) 						//POST
+//		{
+//			requestLine.append(reader.readLine()+'\r');			//å°†è¡¨å•æ•°æ®è¯»å–å‡ºæ¥
+//			String lists = requestLine.toString().substring(requestLine.toString().indexOf("account"), requestLine.toString().length());
+//			String [] list = lists.split("&");
+//			LogInfo.appendLog(list[0]);
+//			LogInfo.appendLog(list[1]);
+//			LogInfo.appendLog(list[2]);
+//		}
+//		else 													//æ²¡æœ‰å®ç°çš„æ–¹æ³• è¿”å›501 Not Implemented
+//		{
+//			String body = new StringBuilder("<HTML>\r\n")
+//					.append("<HEAD><TITLE>Not Implemented</TITLE>\r\n")
+//					.append("<HEAD>\r\n")
+//					.append("<BODY>")
+//					.append("<H1>HTTP Error 501: Not Implemented</H1>\r\n")
+//					.append("</BODY></HTML>\r\n").toString();
+//			if(version.startsWith("HTTP/"))
+//			{
+//				sendHeader(writer, "HTTP/1.0 501 Not Implemented", "text/html; charset=utf-8", body.length());
+//			}
+//			writer.write(body);
+//			writer.flush();
+//		}
 	}catch (IOException ex) {
 		// TODO: handle exception
 	}finally {
@@ -175,7 +168,7 @@ public class RequestProcessor implements Runnable{
 		writer.write(responseCode+"\r\n");
 		Date now = new Date();
 		writer.write("Date:" + now +"\r\n");
-		writer.write("Server: JHTTP 2.0\r\n");
+		writer.write("Server: SQ 2.0\r\n");
 		writer.write("Content-length:"+Length+"\r\n");
 		writer.write("ContentType:"+contentType+"\r\n");
 		writer.write("\r\n");
