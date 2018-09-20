@@ -11,39 +11,40 @@ import java.util.logging.Logger;
 
 public class JHTTP {
 	
-	private static final Logger logger = Logger.getLogger(JHTTP.class.getCanonicalName());
+	private static final Logger logger = Logger.getLogger(JHTTP.class.getCanonicalName());          //Server Logger
 	private static final int NUM_THREADS = 50;
-	private static final String INDEX_FILE = "index";
 	
 	private final File rootDirectory;
 	private final int port;
 	
-	public JHTTP(File rootDirectory, int port) throws IOException {
+	public JHTTP(File rootDirectory, int port) throws IOException 
+	{
 		if(!rootDirectory.isDirectory())
 		{
-			throw new IOException(rootDirectory+"does not exits as a directory");      				//Èç¹û²»ÊÇÎÄ¼ş¼ĞÔòÅ×³öÒì³£
+			throw new IOException(rootDirectory+"does not exits as a directory");      				//å¦‚æœä¸æ˜¯æ–‡ä»¶å¤¹åˆ™æŠ›å‡ºå¼‚å¸¸
 		}
 		this.rootDirectory=rootDirectory;
 		this.port = port;	
 	}
 	
-	public void start() throws IOException {
-		ExecutorService pool = Executors.newFixedThreadPool(NUM_THREADS);							//Ïß³Ì³Ø
+	public void start() throws IOException
+	{
+		ExecutorService pool = Executors.newFixedThreadPool(NUM_THREADS);							//çº¿ç¨‹æ± 
 		try(ServerSocket server = new ServerSocket(port))
 		{
 			logger.info("Accepting connection on port" + server.getLocalPort());
 			logger.info("Document Root:"+rootDirectory);
-			LogInfo.appendLog("Accepting connection on port" + server.getLocalPort());
-			LogInfo.appendLog("Document Root:"+rootDirectory);
+//			LogInfo.appendLog("Accepting connection on port" + server.getLocalPort());				//æœåŠ¡å™¨æ—¥å¿—å­˜å…¥æœ¬åœ°
+//			LogInfo.appendLog("Document Root:"+rootDirectory);
 			
 			while(true)
 			{
 				try
 				{
-					Socket request = server.accept();												//request ¿Í»§¶Ë
-					Runnable r = new RequestProcessor(rootDirectory,INDEX_FILE,request);			//´´½¨Ò»¸öÏß³Ì
-					pool.submit(r);
-				}catch (IOException ex) {
+					Socket request = server.accept();												//request å®¢æˆ·ç«¯å‘é€è¿‡æ¥çš„è¯·æ±‚
+					Runnable r = new RequestProcessor(rootDirectory,request);			//åˆ›å»ºä¸€ä¸ªçº¿ç¨‹
+					pool.submit(r);																	//å°†çº¿ç¨‹æ”¾å…¥çº¿ç¨‹æ± å†…è·‘
+				}catch (IOException ex) {		
 					logger.log(Level.WARNING,"Error accepting connection",ex);
 				}
 			}
@@ -51,20 +52,20 @@ public class JHTTP {
 	}
 	
 	public static void main(String[] args) {
-		File docroot;
+		File docroot;										//ä½œä¸ºæœåŠ¡å™¨çš„æ ¹ç›®å½•
 		try
 		{
-			docroot = new File("C:\\ex8");					//ÕâÊÇÒ»¸öÓÉÉÏ¸öÊµÑéÏÂÔØÏÂÀ´µÄÍøÒ³ËùÔÚµÄÎÄ¼ş¼Ğ
+			docroot = new File("C:\\ex8");					
 		}catch (ArrayIndexOutOfBoundsException ex) {
-			System.out.println("Usage: java JHTTP docroot port");
+			System.out.println("Usage: java JHTTP");	
 			return;
 			// TODO: handle exception
 		}
 		
-		int port = 80;
+		int port = 80;										
 		try {
 			
-			JHTTP webserver = new JHTTP(docroot, port);
+			JHTTP webserver = new JHTTP(docroot, port);		//ä¼ å…¥äº†ç›®å½•å’Œç«¯å£
 			webserver.start();
 		} catch (IOException ex) {
 			logger.log(Level.SEVERE, "Server could not start", ex);
